@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { setContext, getContext, setConclusion, getConclusion } from '../src/store.js';
+import { setContext, getContext, setConclusion, getConclusion, resetStore } from '../src/store.js';
 
 describe('store', () => {
   beforeEach(() => {
-    // Reset between tests by setting to null via empty string won't work —
-    // we'll test that the module resets in isolation. Each test file gets
-    // fresh module via vitest isolation.
+    resetStore();
   });
 
   it('returns null when context slot is empty', () => {

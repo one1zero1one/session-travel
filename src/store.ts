@@ -26,3 +26,8 @@ export function setConclusion(payload: string): void {
 export function getConclusion(): string | null {
   return conclusionSlot;
 }
+
+export function resetStore(): void {
+  contextSlot = null;
+  conclusionSlot = null;
+}
