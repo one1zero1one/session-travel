@@ -1,14 +1,7 @@
 import type { Express } from 'express';
-import { randomBytes, createHash, randomUUID } from 'crypto';
-import { loadTokens, saveTokens } from './persist.js';
 
 const DOMAIN = process.env.DOMAIN ?? 'session-travel.thisisfine.be';
 const BASE = `https://${DOMAIN}`;
-
-const ALLOWED_REDIRECT_URIS = [
-  'https://claude.ai/api/mcp/auth_callback',
-  'https://claude.com/api/mcp/auth_callback',
-];
 
 export function registerOAuthRoutes(app: Express): void {
   // RFC 9728: protected resource metadata
