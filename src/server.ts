@@ -14,14 +14,22 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Request logger
+app.use((req, _res, next) => {
+  console.log(`${req.method} ${req.path} | auth:${req.headers.authorization ? req.headers.authorization.slice(0,20)+'…' : 'none'} | ct:${req.headers['content-type'] ?? '-'}`);
+  next();
+});
+
 // OAuth endpoints (no auth required — they're the auth layer)
 registerOAuthRoutes(app);
 
 // Health
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// MCP endpoint — bearer auth gates all tool calls
-app.all('/mcp', bearerAuth, async (req, res) => {
+// MCP endpoint — bearer auth gates all tool calls.
+// Mounted on both `/mcp` and `/` so it works whether the connector URL
+// was entered with or without the /mcp suffix.
+app.all(['/mcp', '/'], bearerAuth, async (req, res) => {
   const server = new Server(
     { name: 'session-travel', version: '1.0.0' },
     { capabilities: { tools: {} } },
