@@ -41,7 +41,7 @@ export function registerOAuthRoutes(app: Express): void {
       token_endpoint_auth_method?: string;
     };
 
-    if (!Array.isArray(redirect_uris) || !redirect_uris.every(u => ALLOWED_REDIRECT_URIS.includes(u))) {
+    if (!Array.isArray(redirect_uris) || redirect_uris.length === 0 || !redirect_uris.every(u => ALLOWED_REDIRECT_URIS.includes(u))) {
       res.status(400).json({ error: 'invalid_redirect_uri' });
       return;
     }
@@ -66,8 +66,13 @@ export function registerOAuthRoutes(app: Express): void {
       req.query as Record<string, string>;
 
     const tokens = loadTokens();
-    if (!tokens.clients[client_id]) {
+    const client = tokens.clients[client_id];
+    if (!client) {
       res.status(400).send('Unknown client_id');
+      return;
+    }
+    if (!client.redirectUris.includes(redirect_uri)) {
+      res.status(400).send('redirect_uri mismatch');
       return;
     }
 
