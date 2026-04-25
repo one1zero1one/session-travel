@@ -1047,6 +1047,7 @@ git commit -m "feat: OAuth token endpoint with PKCE validation and refresh token
 
 ```typescript
 import express from 'express';
+import { fileURLToPath } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
@@ -1190,8 +1191,11 @@ app.all('/mcp', bearerAuth, async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
-const PORT = parseInt(process.env.PORT ?? '3000');
-app.listen(PORT, () => console.log(`session-travel listening on :${PORT}`));
+const PORT = parseInt(process.env.PORT ?? '3000', 10);
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  app.listen(PORT, () => console.log(`session-travel listening on :${PORT}`));
+}
 
 export { app };
 ```
