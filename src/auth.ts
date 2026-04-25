@@ -11,7 +11,8 @@ export function bearerAuth(req: Request, res: Response, next: NextFunction): voi
   const token = header.slice(7);
 
   // Static bearer token for Claude Code
-  if (token === process.env.BEARER_TOKEN) {
+  const envToken = process.env.BEARER_TOKEN;
+  if (envToken && token === envToken) {
     next();
     return;
   }

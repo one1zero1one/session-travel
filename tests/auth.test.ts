@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { saveTokens, loadTokens, _resetCache } from '../src/persist.js';
 
 process.env.BEARER_TOKEN = 'test-static-token';
 process.env.DATA_DIR = '/tmp/st-auth-test';
@@ -38,6 +39,42 @@ describe('bearerAuth', () => {
     const res = await request(makeApp())
       .get('/protected')
       .set('Authorization', 'Bearer wrong-token');
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('bearerAuth OAuth tokens', () => {
+  beforeEach(() => {
+    _resetCache();
+  });
+
+  it('accepts a valid, non-expired OAuth access token', async () => {
+    const tokens = loadTokens();
+    tokens.accessTokens['valid-oauth-token'] = {
+      clientId: 'c1',
+      expiresAt: Date.now() + 3600_000,
+      resource: 'https://session-travel.thisisfine.be',
+    };
+    saveTokens(tokens);
+
+    const res = await request(makeApp())
+      .get('/protected')
+      .set('Authorization', 'Bearer valid-oauth-token');
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects an expired OAuth access token', async () => {
+    const tokens = loadTokens();
+    tokens.accessTokens['expired-token'] = {
+      clientId: 'c1',
+      expiresAt: Date.now() - 1000, // expired 1 second ago
+      resource: 'https://session-travel.thisisfine.be',
+    };
+    saveTokens(tokens);
+
+    const res = await request(makeApp())
+      .get('/protected')
+      .set('Authorization', 'Bearer expired-token');
     expect(res.status).toBe(401);
   });
 });
