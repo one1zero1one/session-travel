@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes, createHash, randomUUID } from 'crypto';
 import { loadTokens, saveTokens } from './persist.js';
 
 const DOMAIN = process.env.DOMAIN ?? 'session-travel.thisisfine.be';
@@ -91,5 +91,83 @@ export function registerOAuthRoutes(app: Express): void {
     location.searchParams.set('code', code);
     if (state) location.searchParams.set('state', state);
     res.redirect(location.toString());
+  });
+
+  // Token endpoint
+  app.post('/oauth2/token', (req, res) => {
+    const body = req.body as Record<string, string>;
+    const { grant_type } = body;
+    const tokens = loadTokens();
+
+    if (grant_type === 'authorization_code') {
+      const { code, code_verifier, redirect_uri } = body;
+      const codeRecord = tokens.authCodes[code];
+
+      if (!codeRecord || codeRecord.expiresAt < Date.now()) {
+        res.status(400).json({ error: 'invalid_grant' });
+        return;
+      }
+
+      // Validate PKCE S256
+      const expected = createHash('sha256').update(code_verifier ?? '').digest('base64url');
+      if (expected !== codeRecord.codeChallenge) {
+        res.status(400).json({ error: 'invalid_grant' });
+        return;
+      }
+
+      delete tokens.authCodes[code];
+
+      const accessToken = randomBytes(32).toString('hex');
+      const refreshToken = randomBytes(32).toString('hex');
+
+      tokens.accessTokens[accessToken] = {
+        clientId: codeRecord.clientId,
+        expiresAt: Date.now() + 60 * 60 * 1000,
+        resource: codeRecord.resource,
+      };
+      tokens.refreshTokens[refreshToken] = {
+        clientId: codeRecord.clientId,
+        resource: codeRecord.resource,
+      };
+
+      saveTokens(tokens);
+
+      res.json({
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: 3600,
+        refresh_token: refreshToken,
+      });
+      return;
+    }
+
+    if (grant_type === 'refresh_token') {
+      const { refresh_token } = body;
+      const refreshRecord = tokens.refreshTokens[refresh_token];
+
+      if (!refreshRecord) {
+        res.status(400).json({ error: 'invalid_grant' });
+        return;
+      }
+
+      const accessToken = randomBytes(32).toString('hex');
+      tokens.accessTokens[accessToken] = {
+        clientId: refreshRecord.clientId,
+        expiresAt: Date.now() + 60 * 60 * 1000,
+        resource: refreshRecord.resource,
+      };
+
+      saveTokens(tokens);
+
+      res.json({
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: 3600,
+        refresh_token: refresh_token,
+      });
+      return;
+    }
+
+    res.status(400).json({ error: 'unsupported_grant_type' });
   });
 }

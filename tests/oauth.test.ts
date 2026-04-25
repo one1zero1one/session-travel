@@ -100,3 +100,107 @@ describe('OAuth authorization', () => {
     expect(authRes.status).toBe(400);
   });
 });
+
+describe('OAuth token endpoint', () => {
+  async function fullAuthFlow(app: ReturnType<typeof makeApp>) {
+    // Register
+    const regRes = await request(app)
+      .post('/oauth2/register')
+      .send({ redirect_uris: ['https://claude.ai/api/mcp/auth_callback'] });
+    const clientId = regRes.body.client_id;
+
+    // Generate PKCE
+    const verifier = randomBytes(32).toString('base64url');
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+
+    // Authorize
+    const authRes = await request(app)
+      .get('/oauth2/authorize')
+      .query({
+        client_id: clientId,
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        resource: 'https://session-travel.thisisfine.be',
+        response_type: 'code',
+      });
+    const code = new URL(authRes.headers.location).searchParams.get('code')!;
+
+    return { clientId, verifier, code };
+  }
+
+  it('exchanges code for tokens with valid PKCE', async () => {
+    const app = makeApp();
+    const { verifier, code } = await fullAuthFlow(app);
+
+    const tokenRes = await request(app)
+      .post('/oauth2/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: verifier,
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: 'https://session-travel.thisisfine.be',
+      });
+
+    expect(tokenRes.status).toBe(200);
+    expect(tokenRes.body.access_token).toBeTruthy();
+    expect(tokenRes.body.refresh_token).toBeTruthy();
+    expect(tokenRes.body.token_type).toBe('Bearer');
+    expect(tokenRes.body.expires_in).toBe(3600);
+  });
+
+  it('rejects wrong code_verifier', async () => {
+    const app = makeApp();
+    const { code } = await fullAuthFlow(app);
+
+    const tokenRes = await request(app)
+      .post('/oauth2/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: 'wrong-verifier',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      });
+
+    expect(tokenRes.status).toBe(400);
+    expect(tokenRes.body.error).toBe('invalid_grant');
+  });
+
+  it('refreshes an access token', async () => {
+    const app = makeApp();
+    const { verifier, code } = await fullAuthFlow(app);
+
+    const tokenRes = await request(app)
+      .post('/oauth2/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: verifier,
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      });
+
+    const refreshToken = tokenRes.body.refresh_token;
+
+    const refreshRes = await request(app)
+      .post('/oauth2/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: refreshToken });
+
+    expect(refreshRes.status).toBe(200);
+    expect(refreshRes.body.access_token).toBeTruthy();
+    expect(refreshRes.body.access_token).not.toBe(tokenRes.body.access_token);
+  });
+
+  it('rejects invalid refresh token', async () => {
+    const res = await request(makeApp())
+      .post('/oauth2/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: 'bogus' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+});
