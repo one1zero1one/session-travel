@@ -45,13 +45,14 @@ const EMPTY: TokenStore = {
 
 let cache: TokenStore | null = null;
 
+// Returns a direct reference to the cache. Always call saveTokens() after mutation.
 export function loadTokens(): TokenStore {
   if (cache) return cache;
   if (!existsSync(TOKENS_FILE)) {
     cache = structuredClone(EMPTY);
     return cache;
   }
-  cache = JSON.parse(readFileSync(TOKENS_FILE, 'utf8')) as TokenStore;
+  cache = { ...EMPTY, ...JSON.parse(readFileSync(TOKENS_FILE, 'utf8')) } as TokenStore;
   return cache;
 }
 
@@ -61,4 +62,8 @@ export function saveTokens(tokens: TokenStore): void {
   const tmp = `${TOKENS_FILE}.${randomUUID()}.tmp`;
   writeFileSync(tmp, JSON.stringify(tokens, null, 2), 'utf8');
   renameSync(tmp, TOKENS_FILE);
+}
+
+export function _resetCache(): void {
+  cache = null;
 }

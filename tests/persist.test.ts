@@ -10,10 +10,11 @@ const TEST_DIR = join(tmpdir(), `st-test-${randomUUID()}`);
 // Override DATA_DIR before importing
 process.env.DATA_DIR = TEST_DIR;
 
-const { loadTokens, saveTokens } = await import('../src/persist.js');
+const { loadTokens, saveTokens, _resetCache } = await import('../src/persist.js');
 
 describe('persist', () => {
   beforeEach(() => {
+    _resetCache();
     mkdirSync(TEST_DIR, { recursive: true });
     const tokenFile = join(TEST_DIR, 'tokens.json');
     if (existsSync(tokenFile)) rmSync(tokenFile);
