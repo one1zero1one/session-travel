@@ -2,16 +2,13 @@
 
 A bridge between Claude Code and Claude.ai voice. One context payload in transit at a time, two slots, in-memory.
 
-```
-┌──────────────┐                                        ┌──────────────┐
-│ Claude Code  │  /ship  →  [context]   →  pick up  →   │ Claude.ai    │
-│  (desktop)   │                                        │  (voice)     │
-│              │  ←  pick up  ←  [conclusion]  ←  ship  │              │
-└──────────────┘                                        └──────────────┘
-                  session-travel.<your-domain>
-```
+![Architecture](docs/superpowers/architecture.png)
 
 You're working in Claude Code, you want to switch to voice without losing context. `/ship` packages the current conversation (verbatim text + Haiku-summarized tool calls), pushes it to a remote MCP server. From your phone you say "pick up the session", voice loads the context. When done, "ship the conclusion" — voice synthesizes a structured decision record. Back in Claude Code, you pick it up and continue.
+
+> **Single user, one conversation in transit at a time.** No session IDs, no queues. Second ship overwrites the slot. This is a personal tool, not a multi-tenant service.
+
+> **You host it yourself.** This repo is the server code; you bring your own domain, TLS cert, and Docker host. Setup involves a public DNS record, a reverse proxy with Let's Encrypt, and a generated bearer token. See [Deploy](#deploy).
 
 ## What's in here
 
@@ -62,10 +59,11 @@ claude mcp add --scope user --transport http session-travel \
 4. "Ship the conclusion"
 5. Back in Claude Code: "pick up the conclusion"
 
-## Diagrams
+## Sequence flow
 
-- **Architecture**: [`docs/superpowers/architecture.excalidraw`](docs/superpowers/architecture.excalidraw) — open in [excalidraw.com](https://excalidraw.com)
-- **Sequence flow**: [`docs/superpowers/flow.html`](docs/superpowers/flow.html) — open in any browser
+![Flow](docs/superpowers/flow.png)
+
+Source files: [`architecture.excalidraw`](docs/superpowers/architecture.excalidraw) (open in [excalidraw.com](https://excalidraw.com)) · [`flow.html`](docs/superpowers/flow.html) (interactive Mermaid)
 
 ## Design
 
