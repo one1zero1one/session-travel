@@ -1,5 +1,10 @@
 # session-travel
 
+> **Deprecated (2026-09-13).** This project is archived. Claude Code now has voice
+> directly through [cloudcli](https://github.com/one1zero1one/cloudcli), so there is
+> no need to ship context between Claude Code and Claude.ai voice. The service at
+> `session-travel.thisisfine.be` is shut down. The code stays here for reference.
+
 A bridge between Claude Code and Claude.ai voice. One context payload in transit at a time, two slots, in-memory.
 
 ![Architecture](docs/superpowers/architecture.png)
